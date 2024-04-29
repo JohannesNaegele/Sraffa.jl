@@ -158,7 +158,6 @@ function compute_envelope(; A, B, l, d, R, step, model_intensities,
         string.(round.(profit_rates, digits = precision)))
     df_intensities = DataFrame(
         intensities, map(r -> profit_rates_to_names[r], profit_rates))
-    insertcols!(df_intensities, 1, "Sector" => repeat(sectors, n_countries))
 
     if save_all
         switches = Dict(

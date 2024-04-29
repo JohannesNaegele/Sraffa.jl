@@ -1,6 +1,13 @@
 module Sraffa
 
 export compute_envelope
+export create_intensities_r_solver, create_intensities_solver, create_prices_solver
+export modify_A!, modify_C!, modify_r!
+export real_eigvals, compute_R, replace_with_zero
+
+using LinearAlgebra
+using DataFrames
+using JuMP
 
 # Helper functions
 include("helpers.jl")
@@ -11,4 +18,4 @@ include("envelope/binary.jl")
 include("envelope/vfz.jl")
 include("envelope/envelope.jl")
 
-end
+end # module Sraffa
