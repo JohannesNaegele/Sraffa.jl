@@ -15,6 +15,7 @@ include("helpers.jl")
 # Envelope calculation
 abstract type EnvelopeMethod end
 
+include("envelope/types.jl")
 include("envelope/lp.jl")
 include("envelope/binary.jl")
 include("envelope/vfz.jl")
