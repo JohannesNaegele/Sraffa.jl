@@ -13,9 +13,14 @@ using JuMP
 include("helpers.jl")
 
 # Envelope calculation
+abstract type EnvelopeMethod end
+
 include("envelope/lp.jl")
 include("envelope/binary.jl")
 include("envelope/vfz.jl")
 include("envelope/envelope.jl")
+
+# Evaluation of results
+include("evaluate.jl")
 
 end # module Sraffa
