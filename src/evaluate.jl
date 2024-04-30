@@ -52,7 +52,7 @@ end
 
 @userplot WageCurves
 
-@recipe function f(env::WageCurves; stepsize=0.001)
+@recipe function f(env::WageCurves; stepsize=0.001, switches=true)
     results = env.args[1]
     techs = results["switches"]["technology"]
     n_techs = length(techs[end][2].second)
@@ -98,22 +98,29 @@ end
     for i in axes(curves_env, 2)
         grid = 1:findlast(x -> x <= r_env[i], grid_R)
         @series begin
-            subplot := 1
-            name --> labels[i]
+            title := "Wage curves with $n_sw switches"
+            legend := :outertopright
             xlabel --> "r"
             ylabel --> "w"
-            linewidt --> 3
+            subplot := 1
+            name --> labels[i]
+            linewidth --> 3
             grid_R[grid], curves_env[grid, i]
         end
     end
-    @series begin
-        subplot := 1
-        title := "Wage curves with $n_sw switches"
-        legend := :outertopright
-        color --> :grey
-        label --> nothing
-        seriestype  := :vline
-        [tech[1].first for tech in techs]
+    if switches
+        @series begin
+            title := "Wage curves with $n_sw switches"
+            legend := :outertopright
+            xlabel --> "r"
+            ylabel --> "w"
+            subplot := 1
+            linewidth --> 0.5
+            color --> :grey
+            label --> nothing
+            seriestype  := :vline
+            [tech[1].first for tech in techs]
+        end
     end
     # p = plot!(grid_R, curves_env, label="country " .* string.(axes(curves_countries, 2)), color = :gray, lw = 2)
     # return p
