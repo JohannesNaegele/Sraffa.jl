@@ -7,6 +7,7 @@ export real_eigvals, compute_R, replace_with_zero
 
 using LinearAlgebra
 using DataFrames
+using ElasticArrays
 using JuMP
 
 # Helper functions

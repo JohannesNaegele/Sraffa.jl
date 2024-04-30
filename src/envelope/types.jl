@@ -31,13 +31,13 @@ function LPEnvelope(A, profit_rates, effects_sectors)
     n_goods = size(A, 1)
     LPEnvelope(
         n_goods = n_goods,
-        intensities = zeros(size(A, 2), length(profit_rates)),
-        intensities_trunc = zeros(size(A, 1), length(profit_rates)),
-        pA = zeros(effects_sectors, length(profit_rates)),
-        right_side_factor = zeros(effects_sectors, length(profit_rates)),
-        lx = zeros(length(profit_rates)),
-        prices = zeros(n_goods, length(profit_rates)),
-        chosen_technology = zeros(Int64, n_goods, length(profit_rates)),
+        intensities = ElasticArray{Float64}(undef, size(A, 2), length(profit_rates)),
+        intensities_trunc = ElasticArray{Float64}(undef, n_goods, length(profit_rates)),
+        pA = ElasticArray{Float64}(undef, length(effects_sectors), length(profit_rates)),
+        right_side_factor = ElasticArray{Float64}(undef, length(effects_sectors), length(profit_rates)),
+        lx = ElasticArray{Float64}(undef, length(profit_rates)),
+        prices = ElasticArray{Float64}(undef, n_goods, length(profit_rates)),
+        chosen_technology = ElasticArray{Int64}(undef, n_goods, length(profit_rates)),
         capital_intensities = Vector{Pair{Float64, Float64}}[],
         lx_at_switch = Vector{Pair{Float64, Float64}}[],
         intensities_at_switch = Vector{Pair{Float64, Vector{Float64}}}[],
@@ -46,4 +46,14 @@ function LPEnvelope(A, profit_rates, effects_sectors)
         pA_at_switch = Vector{Pair{Float64, Vector{Float64}}}[],
         l_at_switch = Vector{Pair{Float64, Vector{Float64}}}[]
     )
+end
+
+function extend!(env::LPEnvelope, steps)
+    append!(env.intensities, zeros(size(env.intensities, 1), steps))
+    append!(env.intensities_trunc, zeros(size(env.intensities_trunc, 1), steps))
+    append!(env.pA, zeros(size(env.pA, 1), steps))
+    append!(env.right_side_factor, zeros(size(env.right_side_factor, 1), steps))
+    append!(env.lx, zeros(steps))
+    append!(env.prices, zeros(size(env.prices, 1), steps))
+    append!(env.chosen_technology, zeros(size(env.chosen_technology, 1), steps))
 end
