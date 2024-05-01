@@ -21,13 +21,12 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
     # Set l
     map((x, y) -> set_objective_coefficient(model_intensities, x, y),
         model_intensities[:x], l)
-    # This is necessary because of usa1982
+    # This is necessary because of e.g. usa1982
     if !all(d .>= 0)
         d = ones(env.n_goods)
     end
     # Set d
     set_normalized_rhs.(model_intensities[:d], d)
-    C = zeros(size(A))
 
     while r_max_old + stepsize <= r_max_new
         for (i, r) in enumerate(profit_rates)
@@ -37,14 +36,6 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                 function highest_intensity_indices(sector)
                     max_index = argmax(j -> env.intensities[j, i], sector:env.n_goods:length(l))
                     return max_index
-                end
-
-                # von Neumann Ansatz
-                C .= (B - (1 + r) * A)
-                # See Han p. 169
-                qq = ones(size(A, 2))
-                if all(C * qq .- d .< 0.001)
-                    println("B-(1+$r) equals final demand d for r=$r")
                 end
         
                 # Compute intensities
@@ -136,16 +127,14 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
         end
 
         r_max_old = profit_rates[end]
-        if length(env.technologies_switch) != 0
-            r_max_new = compute_R(maximum(real_eigvals(A[effects_sectors, env.technologies_switch[end][2].second])))
-        else
-            r_max_new = r_max_old
-        end
+        r_max_new = compute_R(maximum(real_eigvals(A[:, env.chosen_technology[:, end]])))
         !extend && (r_max_old = Inf)
         i_old = length(profit_rates)
         profit_rates = 0:stepsize:r_max_new
-        println(r_max_old)
-        println(r_max_new)
+        # This is effectively rounding to ensure that old equals new if we are advancing sub-stepsize
+        r_max_new = profit_rates[end]
+        # println(r_max_old)
+        # println(r_max_new)
         extend!(env, length(profit_rates) - i_old)
     end
 
