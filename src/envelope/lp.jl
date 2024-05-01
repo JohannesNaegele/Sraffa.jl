@@ -6,7 +6,7 @@ Therefore all objects have permuted dimensions compared to the usual ``(1 + r)Ap
 We use all sectors for switchpoint calculation but consider only `effects_sectors` for effects such as reverse capital deepening.
 """
 function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
-        model_intensities_trunc, model_prices, verbose = false, save_all=true, effects_sectors=1:33)
+        model_intensities_trunc, model_prices, verbose = false, save_all=true, effects_sectors=1:33, extend=true)
 
     r_max_old = -Inf
     r_max_new = Inf
@@ -27,6 +27,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
     end
     # Set d
     set_normalized_rhs.(model_intensities[:d], d)
+    C = zeros(size(A))
 
     while r_max_old + stepsize <= r_max_new
         for (i, r) in enumerate(profit_rates)
@@ -39,7 +40,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                 end
 
                 # von Neumann Ansatz
-                C = (B - (1 + r) * A)
+                C .= (B - (1 + r) * A)
                 # See Han p. 169
                 qq = ones(size(A, 2))
                 if all(C * qq .- d .< 0.001)
@@ -52,9 +53,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                 error_msg = "$(termination_status(model_intensities))\nProbably unfeasible d!"
                 @assert is_solved_and_feasible(model_intensities) error_msg
                 env.intensities[:, i] = replace_with_zero.(value.(model_intensities[:x]))
-                env.chosen_technology[:, i] = [highest_intensity_indices(sector)
-                                        for sector in 1:env.n_goods]
-                # map!(sector -> highest_intensity_indices(sector), env.chosen_technology[:, i], 1:env.n_goods)
+                map!(sector -> highest_intensity_indices(sector), view(env.chosen_technology, :, i), 1:env.n_goods)
             end
         end
 
@@ -142,6 +141,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
         else
             r_max_new = r_max_old
         end
+        !extend && (r_max_old = Inf)
         i_old = length(profit_rates)
         profit_rates = 0:stepsize:r_max_new
         println(r_max_old)
@@ -159,25 +159,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
     df_intensities = DataFrame(
         env.intensities, map(r -> profit_rates_to_names[r], profit_rates))
 
-    if save_all
-        switches = Dict(
-            "capital_intensities" => env.capital_intensities,
-            "pA" => env.pA_at_switch,
-            "lx" => env.lx_at_switch,
-            "l" => env.l_at_switch,
-            "prices" => env.prices_switch,
-            "intensities" => env.intensities_at_switch,
-            "technology" => env.technologies_switch
-        )
-    else
-        switches = Dict(
-            "capital_intensities" => env.capital_intensities,
-            "l" => env.l_at_switch,
-            "prices" => env.prices_switch,
-            "intensities" => env.intensities_at_switch,
-            "technology" => env.technologies_switch
-        )
-    end
+    switches = save(env, save_all)
 
     return df_intensities, profit_rates_to_names, profit_rates, switches
 end

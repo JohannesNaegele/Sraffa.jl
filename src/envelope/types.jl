@@ -57,3 +57,25 @@ function extend!(env::LPEnvelope, steps)
     append!(env.prices, zeros(size(env.prices, 1), steps))
     append!(env.chosen_technology, zeros(size(env.chosen_technology, 1), steps))
 end
+
+function save(env::LPEnvelope, save_all)
+    if save_all
+        return Dict(
+            "capital_intensities" => env.capital_intensities,
+            "pA" => env.pA_at_switch,
+            "lx" => env.lx_at_switch,
+            "l" => env.l_at_switch,
+            "prices" => env.prices_switch,
+            "intensities" => env.intensities_at_switch,
+            "technology" => env.technologies_switch
+        )
+    else
+        return Dict(
+            "capital_intensities" => env.capital_intensities,
+            "l" => env.l_at_switch,
+            "prices" => env.prices_switch,
+            "intensities" => env.intensities_at_switch,
+            "technology" => env.technologies_switch
+        )
+    end
+end
