@@ -13,7 +13,7 @@ function n_reswitches(results)
     for (i, tech1) in enumerate(technology[begin:(end - 1)])
         for tech2 in technology[(i + 1):end]
             if tech1 == tech2
-                push!(results["switches"]["technology"][i][1].first)
+                push!(at, results["switches"]["technology"][i][1].first)
             end
         end
     end
