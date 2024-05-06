@@ -66,16 +66,20 @@ Since A and l are transposed compared to the usual formula (A from the start, l 
 """
 compute_w(A, B, d, l, r) = 1 / (l' * (B - (1 + r) * A)^-1 * d)
 
+""" Calculate the wage rate w for a given inverse matrix.
+"""
+compute_w(C_inv, d, l) = 1 / (l' * C_inv * d)
+
 """ Calculate the wage rate w with the Woodbury formula.
 
 l is a column vector that gets transposed.
 """
-function compute_w(; C_inv, d, l, r, process_old, process, industry)
+function compute_w(C_inv, d, l, r, process_old, process, industry, temp_u, temp_l_C_inv)
     # TODO: speedup
-    v = eachindex(d) .== industry
+    # v = eachindex(d) .== industry
     # We substract -(1+r)A from B therefore we have to reverse the sign here
     u = (process_old - process) * (1 + r)
-    v_T_C_inv = v' * C_inv
+    v_T_C_inv = adjoint(view(C_inv, industry, :)) # v' * C_inv
     l_C_inv = l' * C_inv
     denom = 1 + v_T_C_inv * u
     numerator = l_C_inv * u * v_T_C_inv * d

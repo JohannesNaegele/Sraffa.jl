@@ -2,7 +2,7 @@ global precision_r_diff = 1e-6
 
 # TODO: ensure that the techs have all the same length
 # TODO: use B properly if not identity
-struct Envelope{T, R}
+struct BinaryEnvelope{T, R}
     A
     B
     l
@@ -50,7 +50,7 @@ function update_envelope(envelope, r, technology, w)
     envelope.wages[r] = w
 end
 
-function try_piecewise_switches(envelope, r, d, C_inv)
+function try_piecewise_switches(envelope::BinaryEnvelope, r, C_inv)
     w_old = envelope.wages[r]
     w_max = w_old
     old_tech_id = envelope.tech_dict[r]
@@ -59,10 +59,10 @@ function try_piecewise_switches(envelope, r, d, C_inv)
     for sector_tech in 1:envelope.n_goods
         for country_tech in 1:envelope.n_countries
             process_old = view(envelope.A, :, envelope.ids[old_tech_id][sector_tech])
-            new_col = (country_tech - 1) * n_goods + sector_tech
+            new_col = (country_tech - 1) * envelope.n_goods + sector_tech
             process_new = view(envelope.A, :, new_col)
             l[sector_tech] = envelope.l[new_col]
-            w, _ = compute_w(C_inv=C_inv, d=envelope.d, l=l, process_old=process_old, process=process_new, industry=sector_tech, r=r)
+            w = compute_w(C_inv=C_inv, d=envelope.d, l=l, process_old=process_old, process=process_new, industry=sector_tech, r=r)
             w > w_max && (w_max = w)
         end
         l[sector_tech] = old_l[sector_tech] # reset
@@ -70,6 +70,28 @@ function try_piecewise_switches(envelope, r, d, C_inv)
     # Update the envelope
     update_envelope(envelope, r, new_tech, w_max)
     return w_max != w_old
+end
+
+function try_piecewise_switches(envelope::LPEnvelope, r, C_inv, old_tech)
+    old_l = vec(envelope.l[old_tech])
+    w_old = compute_w(C_inv, envelope.d, old_l)
+    w_max = w_old
+    l = copy(old_l)
+    best_sector = best_col = 0
+    temp_u = Vector{Float64}(undef, envelope.n_goods)
+    temp_l_C_inv = adjoint(Vector{Float64}(undef, envelope.n_goods))
+    for sector_tech in eachindex(old_tech)
+        for country_tech in 1:Int(envelope.n_countries)
+            process_old = view(envelope.A, :, old_tech[sector_tech])
+            new_col = (country_tech - 1) * envelope.n_goods + sector_tech
+            process_new = view(envelope.A, :, new_col)
+            l[sector_tech] = envelope.l[new_col]
+            w = compute_w(C_inv, envelope.d, l, r, process_old, process_new, sector_tech, temp_u, temp_l_C_inv)
+            w > w_max && (w_max = w; best_sector = sector_tech; best_col = new_col)
+            l[sector_tech] = old_l[sector_tech] # reset
+        end
+    end
+    return w_max > w_old, best_sector, best_col
 end
 
 function try_start_tech(envelope, start_r, end_r)

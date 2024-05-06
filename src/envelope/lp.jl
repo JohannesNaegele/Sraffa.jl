@@ -6,7 +6,7 @@ Therefore all objects have permuted dimensions compared to the usual ``(1 + r)Ap
 We use all sectors for switchpoint calculation but consider only `effects_sectors` for effects such as reverse capital deepening.
 """
 function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
-        model_intensities_trunc, model_prices, verbose = false, save_all=true, effects_sectors=1:33, extend=true)
+        model_intensities_trunc, model_prices, verbose = false, save_all=true, effects_sectors=1:33, extend=true, calc_all=true)
 
     r_max_old = -Inf
     r_max_new = Inf
@@ -15,7 +15,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
     # Grid of profit rates
     profit_rates = 0:stepsize:R
 
-    env = LPEnvelope(A, profit_rates, effects_sectors)
+    env = LPEnvelope(A, l, d, profit_rates, effects_sectors)
 
     # FIXME: Das gehört hier nicht her
     # Set l
@@ -30,21 +30,34 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
 
     while r_max_old + stepsize <= r_max_new
         for (i, r) in enumerate(profit_rates)
+            # Get the indices for the columns with the highest intensity per sector
+            function highest_intensity_indices(sector)
+                max_index = argmax(j -> env.intensities[j, i], sector:env.n_goods:length(l))
+                return max_index
+            end
             if r > r_max_old
-                verbose && println("Profit rate: $r")
-                # Get the indices for the columns with the highest intensity per sector
-                function highest_intensity_indices(sector)
-                    max_index = argmax(j -> env.intensities[j, i], sector:env.n_goods:length(l))
-                    return max_index
+                if calc_all || i == 1
+                    verbose && println("Profit rate: $r")
+                    # Compute intensities
+                    modify_r!(model_intensities, r)
+                    optimize!(model_intensities) # min l * x s.t. C * x ≥ d AND x .≥ 0
+                    error_msg = "$(termination_status(model_intensities))\nProbably unfeasible d!"
+                    @assert is_solved_and_feasible(model_intensities) error_msg
+                    env.intensities[:, i] = replace_with_zero.(value.(model_intensities[:x]))
+                    map!(sector -> highest_intensity_indices(sector), view(env.chosen_technology, :, i), 1:env.n_goods)
+                else
+                    # For pairwise switches use last optimal tech
+                    # tech = view(env.chosen_technology, :, i - 1)
+                    tech = env.chosen_technology[:, i - 1]
+                    # C_inv = StrideArray{eltype(A)}(undef, size(A, 1), size(A, 1))
+                    # C_inv .= inv(B[:, tech] - (1 + r) * A[:, tech])
+                    C_inv = inv(B[:, tech] - (1 + r) * A[:, tech])
+                    improved, best_sector, best_col = try_piecewise_switches(env, r, C_inv, tech)
+                    env.chosen_technology[:, i] = tech
+                    if improved
+                        env.chosen_technology[best_sector, i] = best_col
+                    end
                 end
-        
-                # Compute intensities
-                modify_r!(model_intensities, r)
-                optimize!(model_intensities) # min l * x s.t. C * x ≥ d AND x .≥ 0
-                error_msg = "$(termination_status(model_intensities))\nProbably unfeasible d!"
-                @assert is_solved_and_feasible(model_intensities) error_msg
-                env.intensities[:, i] = replace_with_zero.(value.(model_intensities[:x]))
-                map!(sector -> highest_intensity_indices(sector), view(env.chosen_technology, :, i), 1:env.n_goods)
             end
         end
 
@@ -55,6 +68,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                 switch = tech[effects_sectors] != env.chosen_technology[effects_sectors, i + 1]
                 if switch
                     for j in i:(i + 1)
+                        # FIXME: Do we want this at all?
                         # Compute truncated intensities
                         d = ones(env.n_goods)
                         A_trunc = view(A, :, env.chosen_technology[:, j])  # filter columns

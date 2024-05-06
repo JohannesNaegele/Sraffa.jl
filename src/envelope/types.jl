@@ -1,36 +1,44 @@
-Base.@kwdef struct LPEnvelope <: EnvelopeMethod
+Base.@kwdef struct LPEnvelope{S, T, U, EAM, EAI, EAV, VP, VPV, VPI, P} <: EnvelopeMethod
+    A::S
+    l::T
+    d::U
     # Number of goods
-    n_goods
+    n_goods::Int64
+    n_countries::Int64
 
     # Activity levels (q)
-    intensities
+    intensities::EAM
     # Truncated activity levels; calculated via C = (B - A)
-    intensities_trunc
-    pA
-    right_side_factor
-    lx
+    intensities_trunc::EAM
+    pA::EAM
+    right_side_factor::EAM
+    lx::EAV
     # Prices computed from truncated intensities via the dual representation
-    prices
+    prices::EAM
     # Indices of chosen technologies; chosen_technology[i] ∈ i * n_goods
-    chosen_technology
+    chosen_technology::EAI
 
     # These are data structures used to store only at switches
     # Capital intensities (pAx / lx)
-    capital_intensities
-    lx_at_switch
-    intensities_at_switch
+    capital_intensities::VP
+    lx_at_switch::VP
+    intensities_at_switch::VPV
     # Prices (specified to be exactly the same before/after switch; it doesn't make a difference though)
-    prices_switch
-    technologies_switch
-    pA_at_switch
-    l_at_switch
+    prices_switch::P
+    technologies_switch::VPI
+    pA_at_switch::VPV
+    l_at_switch::VPV
 end
 
 
-function LPEnvelope(A, profit_rates, effects_sectors)
+function LPEnvelope(A, l, d, profit_rates, effects_sectors)
     n_goods = size(A, 1)
     LPEnvelope(
+        A = A,
+        l = l,
+        d = d,
         n_goods = n_goods,
+        n_countries = div(size(A, 2), n_goods),
         intensities = ElasticArray{Float64}(undef, size(A, 2), length(profit_rates)),
         intensities_trunc = ElasticArray{Float64}(undef, n_goods, length(profit_rates)),
         pA = ElasticArray{Float64}(undef, length(effects_sectors), length(profit_rates)),

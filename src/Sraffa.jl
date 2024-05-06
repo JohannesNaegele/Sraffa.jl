@@ -10,6 +10,8 @@ export compute_w, plot_wage_curves
 using LinearAlgebra
 using DataFrames
 using ElasticArrays
+using LazyArrays
+using StrideArrays
 using JuMP
 using RecipesBase
 
