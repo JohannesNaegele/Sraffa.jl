@@ -80,7 +80,7 @@ function compute_w(C_inv, d, l, r, process_old, process, industry, temp_u, temp_
     # We substract -(1+r)A from B therefore we have to reverse the sign here
     u = (process_old - process) * (1 + r)
     v_T_C_inv = adjoint(view(C_inv, industry, :)) # v' * C_inv
-    l_C_inv = l' * C_inv
+    l_C_inv = l' * C_inv # this can be done easier by saving l_old' * C_inv and then just updating one coordinate
     denom = 1 + v_T_C_inv * u
     numerator = l_C_inv * u * v_T_C_inv * d
     return 1 / (l_C_inv * d - numerator / denom)
