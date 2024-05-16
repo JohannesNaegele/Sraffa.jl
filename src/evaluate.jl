@@ -140,6 +140,4 @@ end
             [tech[1].first for tech in techs]
         end
     end
-    # p = plot!(grid_R, curves_env, label="country " .* string.(axes(curves_countries, 2)), color = :gray, lw = 2)
-    # return p
 end

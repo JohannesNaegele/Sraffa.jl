@@ -78,7 +78,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                         set_normalized_rhs.(model_intensities_trunc[:con], d)
                         modify_C!(model_intensities_trunc, model_intensities_trunc[:x], C_trunc)
                         optimize!(model_intensities_trunc)  # min l_trunc * x s.t. C_trunc * x ≥ d AND x .≥ 0
-                        @assert is_solved_and_feasible(model_intensities_trunc)
+                        @assert is_solved_and_feasible(model_intensities_trunc) "at r=$(profit_rates[i])"
                         env.intensities_trunc[:, j] = value.(model_intensities_trunc[:x])
 
                         # Compute prices
@@ -141,14 +141,13 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
         end
 
         r_max_old = profit_rates[end]
-        r_max_new = compute_R(maximum(real_eigvals(A[:, env.chosen_technology[:, end]])))
+        # FIXME: This only works for B being the identity matrix
+        r_max_new = compute_R(real_eigvals(A[:, env.chosen_technology[:, end]]))
         !extend && (r_max_old = Inf)
         i_old = length(profit_rates)
         profit_rates = 0:stepsize:r_max_new
         # This is effectively rounding to ensure that old equals new if we are advancing sub-stepsize
         r_max_new = profit_rates[end]
-        # println(r_max_old)
-        # println(r_max_new)
         extend!(env, length(profit_rates) - i_old)
     end
 

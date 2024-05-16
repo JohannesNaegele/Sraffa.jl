@@ -3,8 +3,8 @@ module Sraffa
 export compute_envelope
 export create_intensities_r_solver, create_intensities_solver, create_prices_solver
 export modify_A!, modify_C!, modify_r!
-export real_eigvals, compute_R, replace_with_zero
-export n_switches, n_reswitches, switch_cases
+export real_eigvals, compute_R, replace_with_zero, safe_divide
+export n_switches, n_reswitches, switch_cases, switch_info
 export compute_w, plot_wage_curves
 
 using LinearAlgebra
@@ -14,6 +14,7 @@ using LazyArrays
 using StrideArrays
 using JuMP
 using RecipesBase
+using FLoops
 
 # Helper functions
 include("helpers.jl")

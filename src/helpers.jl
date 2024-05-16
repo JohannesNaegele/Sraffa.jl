@@ -4,13 +4,18 @@ real_eigvals(x) = real.(filter(e -> imag(e) == 0, eigvals(x)))
 """
 Compute the highest sensible profit rate for given eigenvalues of the input-output matrix.
 
-Briefly stated, an application of the Perron-Frobenius theorem gives the existence of ???
+Briefly stated, an application of the Perron-Frobenius theorem gives the existence of a
+maximum profit rate R_max which gives non-negative prices between [0, R_max].
 """
 function compute_R(eigenvalues)
-    return minimum((1.0 .- eigenvalues) ./ eigenvalues)
+    eig_frob = maximum(eigenvalues)
+    return (1.0 - eig_frob) / eig_frob
 end
 
-replace_with_zero(x) = x == 1.0 ? 0.0 : x
+""" For normalization it is conventient to return 0.0 for division by zero. """
+safe_divide(x, y) = y == 0 ? 0.0 : x / y
+
+replace_with_zero(x, value = 1.0) = x == value ? 0.0 : x
 
 """ Setup and return a solver for our linear problem with intensities that can modify the profit rate. """
 function create_intensities_r_solver(solver, l, A, B, d, lb)
