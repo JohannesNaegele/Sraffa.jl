@@ -141,3 +141,53 @@ end
         end
     end
 end
+
+@userplot Env
+
+@recipe function f(env::Env; stepsize=0.001, switches=true)
+    results = env.args[1]
+    techs = results["switches"]["technology"]
+    n_techs = length(techs[end][2].second)
+    A = results["A"]
+    B = results["B"]
+    l = vec(results["l"])
+    d = results["d"][1:n_techs]
+    max_R = compute_R(maximum(real_eigvals(A[1:n_techs, techs[end][2].second]')))
+    grid_R = 0:stepsize:max_R
+    curve = zeros(length(grid_R))
+    lower_r = 0.0
+    for (j, tech) in enumerate(techs)
+        upper_r = results["switches"]["l"][j][1].first
+        A_curve = A[1:n_techs, tech[1].second]
+        B_curve = B[1:n_techs, tech[1].second]
+        l_curve = l[tech[1].second]
+        for (i, r) in enumerate(grid_R)
+            if lower_r <= r <= upper_r
+                w = compute_w(A_curve, B_curve, d, l_curve, r)
+                curve[i] = w
+            end
+        end
+        lower_r = upper_r
+    end
+    for (i, r) in enumerate(grid_R)
+        A_curve = A[1:n_techs, techs[end][end].second]
+        B_curve = B[1:n_techs, techs[end][end].second]
+        l_curve = l[techs[end][end].second]
+        if results["switches"]["l"][length(techs)][2].first <= r
+            w = compute_w(A_curve, B_curve, d, l_curve, r)
+            curve[i] = w
+        end
+    end
+    n_sw = n_switches(results)
+    @series begin
+        title := "Wage curves with $n_sw switches"
+        legend := :outertopright
+        xlabel --> "r"
+        ylabel --> "w"
+        subplot := 1
+        label --> "envelope"
+        linewidth --> 3
+        seriestype  := :line
+        grid_R, curve
+    end
+end
