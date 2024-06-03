@@ -92,6 +92,7 @@ function try_piecewise_switches(envelope::LPEnvelope, r, C_inv, old_tech)
             l[sector_tech] = envelope.l[new_col]
             # Compute the wage resulting from switch to sector_tech
             w = compute_w(C_inv, envelope.d, l, r, process_old, process_new, sector_tech, temp_u, temp_l_C_inv)
+
             # Check whether the wage increased
             if w > w_max
                 w_max = w
