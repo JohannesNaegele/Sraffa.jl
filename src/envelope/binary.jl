@@ -72,26 +72,26 @@ function try_piecewise_switches(envelope::BinaryEnvelope, r, C_inv)
     return w_max != w_old
 end
 
-function try_piecewise_switches(envelope::LPEnvelope, r, C_inv, old_tech)
-    old_l = vec(envelope.l[old_tech])
-    w_old = compute_w(C_inv, envelope.d, old_l)
+function try_piecewise_switches(env::LPEnvelope, r, C_inv, old_tech)
+    old_l = copy(vec(env.l[old_tech]))
+    w_old = compute_w(C_inv, env.d, old_l)
     w_max = w_old
     l = copy(old_l)
     best_sector = best_col = 0
 
     # These are variables used in compute_w that are preallocated here
-    temp_u = Vector{Float64}(undef, envelope.n_goods)
-    temp_l_C_inv = adjoint(Vector{Float64}(undef, envelope.n_goods))
+    temp_u = Vector{Float64}(undef, env.n_goods)
+    temp_l_C_inv = adjoint(Vector{Float64}(undef, env.n_goods))
     
     for sector_tech in eachindex(old_tech) # loop over all sectors
-        for country_tech in 1:Int(envelope.n_countries) # loop over all possible technologies
+        for country_tech in 1:Int(env.n_countries) # loop over all possible technologies
             # Calculate the column position of the new technology
-            new_col = (country_tech - 1) * envelope.n_goods + sector_tech
-            process_old = view(envelope.A, :, old_tech[sector_tech])
-            process_new = view(envelope.A, :, new_col)
-            l[sector_tech] = envelope.l[new_col]
+            new_col = (country_tech - 1) * env.n_goods + sector_tech
+            process_old = view(env.A, :, old_tech[sector_tech])
+            process_new = view(env.A, :, new_col)
+            l[sector_tech] = env.l[new_col]
             # Compute the wage resulting from switch to sector_tech
-            w = compute_w(C_inv, envelope.d, l, r, process_old, process_new, sector_tech, temp_u, temp_l_C_inv)
+            w = compute_w(C_inv, env.d, l, r, process_old, process_new, sector_tech, temp_u, temp_l_C_inv)
 
             # Check whether the wage increased
             if w > w_max
