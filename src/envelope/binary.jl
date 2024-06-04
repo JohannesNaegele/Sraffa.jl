@@ -72,7 +72,12 @@ function try_piecewise_switches(envelope::BinaryEnvelope, r, C_inv)
     return w_max != w_old
 end
 
-function try_piecewise_switches(env::LPEnvelope, r, C_inv, old_tech)
+function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, verbose=false)
+    
+    # C_inv = StrideArray{eltype(A)}(undef, size(A, 1), size(A, 1))
+    # C_inv .= inv(B[:, tech] - (1 + r) * A[:, tech])
+    C_inv = inv(I(36) - (1 + r) * env.A[:, old_tech])
+
     old_l = copy(vec(env.l[old_tech]))
     w_old = compute_w(C_inv, env.d, old_l)
     w_max = w_old
@@ -82,6 +87,8 @@ function try_piecewise_switches(env::LPEnvelope, r, C_inv, old_tech)
     # These are variables used in compute_w that are preallocated here
     temp_u = Vector{Float64}(undef, env.n_goods)
     temp_l_C_inv = adjoint(Vector{Float64}(undef, env.n_goods))
+
+    tech = copy(old_tech)
     
     for sector_tech in eachindex(old_tech) # loop over all sectors
         for country_tech in 1:Int(env.n_countries) # loop over all possible technologies
@@ -90,18 +97,30 @@ function try_piecewise_switches(env::LPEnvelope, r, C_inv, old_tech)
             process_old = view(env.A, :, old_tech[sector_tech])
             process_new = view(env.A, :, new_col)
             l[sector_tech] = env.l[new_col]
+
             # Compute the wage resulting from switch to sector_tech
             w = compute_w(C_inv, env.d, l, r, process_old, process_new, sector_tech, temp_u, temp_l_C_inv)
+            tech[sector_tech] = new_col
+            # w = compute_w(inv(I(36) - (1 + r) * env.A[:, tech]), env.d, l)
+            A = view(env.A, :, tech)
+            # w = compute_w(A, I(36), env.d, l, r)
 
             # Check whether the wage increased
-            if w > w_max
-                w_max = w
-                best_sector = sector_tech
-                best_col = new_col
+            if w > w_max && w < w_limit # TODO: does this work?
+                if !(compute_R(real_eigvals(A)) < r)
+                    w_max = w
+                    best_sector = sector_tech
+                    best_col = new_col
+                end
             end
-            # Reset the l vector
+            # Reset the vectors
             l[sector_tech] = old_l[sector_tech]
+            tech[sector_tech] = old_tech[sector_tech]
         end
+    end
+    if verbose
+        println("w_old: $w_old")
+        println("w_max: $w_max")
     end
     return w_max > w_old, best_sector, best_col
 end

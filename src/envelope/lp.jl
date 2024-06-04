@@ -49,93 +49,12 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                     # For pairwise switches use last optimal tech
                     # tech = view(env.chosen_technology, :, i - 1)
                     tech = env.chosen_technology[:, i - 1]
-                    # C_inv = StrideArray{eltype(A)}(undef, size(A, 1), size(A, 1))
-                    # C_inv .= inv(B[:, tech] - (1 + r) * A[:, tech])
-                    C_inv = inv(B[:, tech] - (1 + r) * A[:, tech])
-                    improved, best_sector, best_col = try_piecewise_switches(env, r, C_inv, tech)
-                    env.chosen_technology[:, i] = tech
+                    env.chosen_technology[:, i] = deepcopy(tech)
+                    w_limit = compute_w(A[:, tech], B[:, tech], d, l[tech], profit_rates[i - 1])
+                    improved, best_sector, best_col = try_piecewise_switches(env, r, tech, w_limit)
                     if improved
                         env.chosen_technology[best_sector, i] = best_col
                     end
-                end
-            end
-        end
-
-        # We compute the truncated stuff and prices only at switch points
-        for (i, tech) in enumerate(eachcol(env.chosen_technology)[begin:(end - 1)])
-            if i >= i_old
-                # Check whether we are at switch point
-                switch = tech[effects_sectors] != env.chosen_technology[effects_sectors, i + 1]
-                if switch
-                    for j in i:(i + 1)
-                        # FIXME: Do we want this at all?
-                        # Compute truncated intensities
-                        d = ones(env.n_goods)
-                        A_trunc = view(A, :, env.chosen_technology[:, j])  # filter columns
-                        l_trunc = vec(view(l, :, env.chosen_technology[:, j]))'  # filter columns
-                        B_trunc = I(size(A_trunc, 1))  # initialize identity matrix
-                        C_trunc = B_trunc - A_trunc
-                        set_normalized_rhs.(model_intensities_trunc[:con], d)
-                        modify_C!(model_intensities_trunc, model_intensities_trunc[:x], C_trunc)
-                        optimize!(model_intensities_trunc)  # min l_trunc * x s.t. C_trunc * x ≥ d AND x .≥ 0
-                        @assert is_solved_and_feasible(model_intensities_trunc) "at r=$(profit_rates[i])"
-                        env.intensities_trunc[:, j] = value.(model_intensities_trunc[:x])
-
-                        # Compute prices
-                        r = profit_rates[j]
-                        C = (B - (1 + r) * A)
-                        C_trunc = view(C, :, env.chosen_technology[:, j])  # filter columns
-                        set_normalized_rhs.(model_prices[:con], vec(l_trunc))
-                        set_objective_coefficient.(model_prices, model_prices[:p], d)
-                        modify_C!(model_prices, model_prices[:p], permutedims(C_trunc))
-                        optimize!(model_prices)  # max p * d s.t. C' * p ≤ l AND p .≥ 0
-                        @assert is_solved_and_feasible(model_prices)
-                        env.prices[:, j] = value.(model_prices[:p])
-
-                        # Compute (l * x)
-                        env.lx[j] = l_trunc[:, effects_sectors] * env.intensities_trunc[:, j][effects_sectors]
-                        # Compute (pA)'
-                        env.pA[:, j] = vec(A_trunc[effects_sectors, effects_sectors]' * env.prices[:, i][effects_sectors])
-                        # Compute A * x / (l * x)
-                        env.right_side_factor[:, j] = A_trunc[effects_sectors, effects_sectors] *
-                                                    env.intensities_trunc[:, j][effects_sectors] / env.lx[j]
-                    end
-
-                    # Compute p * A * x / (l * x)
-                    push!(env.capital_intensities,
-                        [
-                            profit_rates[i] => env.prices[:, i][effects_sectors]' * env.right_side_factor[:, i],
-                            profit_rates[i + 1] => env.prices[:, i][effects_sectors]' * env.right_side_factor[:, i + 1]
-                        ]
-                    )
-                    push!(env.lx_at_switch, [
-                            profit_rates[i] => env.lx[i],
-                            profit_rates[i + 1] => env.lx[i + 1]
-                        ]
-                    )
-                    push!(env.pA_at_switch,
-                        [
-                            profit_rates[i] => env.pA[:, i][effects_sectors],
-                            profit_rates[i + 1] => env.pA[:, i + 1][effects_sectors]
-                        ]
-                    )
-                    push!(env.l_at_switch,
-                        [
-                            profit_rates[i] => vec(view(l, :, env.chosen_technology[:, i]))[effects_sectors],
-                            profit_rates[i + 1] => vec(view(l, :, env.chosen_technology[:, i + 1]))[effects_sectors]
-                        ]
-                    )
-                    push!(env.intensities_at_switch,
-                    [
-                        profit_rates[i] => env.intensities_trunc[:, i][effects_sectors],
-                        profit_rates[i + 1] => env.intensities_trunc[:, i + 1][effects_sectors]
-                    ]
-                    )
-                    push!(env.prices_switch, profit_rates[i] => env.prices[:, i][effects_sectors])
-                    push!(env.technologies_switch,
-                        [profit_rates[i] => env.chosen_technology[:, i][effects_sectors],
-                        profit_rates[i + 1] => env.chosen_technology[:, i + 1][effects_sectors]]
-                    )
                 end
             end
         end
@@ -149,6 +68,83 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
         # This is effectively rounding to ensure that old equals new if we are advancing sub-stepsize
         r_max_new = profit_rates[end]
         extend!(env, length(profit_rates) - i_old)
+    end
+
+    # We compute the truncated stuff and prices only at switch points
+    for (i, tech) in enumerate(eachcol(env.chosen_technology)[begin:(end - 1)])
+        # Check whether we are at switch point
+        switch = tech[effects_sectors] != env.chosen_technology[effects_sectors, i + 1]
+        if switch
+            for j in i:(i + 1)
+                # FIXME: Do we want this at all?
+                # Compute truncated intensities
+                d = ones(env.n_goods)
+                A_trunc = view(A, :, env.chosen_technology[:, j])  # filter columns
+                l_trunc = vec(view(l, :, env.chosen_technology[:, j]))'  # filter columns
+                B_trunc = I(size(A_trunc, 1))  # initialize identity matrix
+                C_trunc = B_trunc - A_trunc
+                set_normalized_rhs.(model_intensities_trunc[:con], d)
+                modify_C!(model_intensities_trunc, model_intensities_trunc[:x], C_trunc)
+                optimize!(model_intensities_trunc)  # min l_trunc * x s.t. C_trunc * x ≥ d AND x .≥ 0
+                @assert is_solved_and_feasible(model_intensities_trunc) "at r=$(profit_rates[i])"
+                env.intensities_trunc[:, j] = value.(model_intensities_trunc[:x])
+
+                # Compute prices
+                r = profit_rates[j]
+                C = (B - (1 + r) * A)
+                C_trunc = view(C, :, env.chosen_technology[:, j])  # filter columns
+                set_normalized_rhs.(model_prices[:con], vec(l_trunc))
+                set_objective_coefficient.(model_prices, model_prices[:p], d)
+                modify_C!(model_prices, model_prices[:p], permutedims(C_trunc))
+                optimize!(model_prices)  # max p * d s.t. C' * p ≤ l AND p .≥ 0
+                @assert is_solved_and_feasible(model_prices)
+                env.prices[:, j] = value.(model_prices[:p])
+
+                # Compute (l * x)
+                env.lx[j] = l_trunc[:, effects_sectors] * env.intensities_trunc[:, j][effects_sectors]
+                # Compute (pA)'
+                env.pA[:, j] = vec(A_trunc[effects_sectors, effects_sectors]' * env.prices[:, i][effects_sectors])
+                # Compute A * x / (l * x)
+                env.right_side_factor[:, j] = A_trunc[effects_sectors, effects_sectors] *
+                                            env.intensities_trunc[:, j][effects_sectors] / env.lx[j]
+            end
+
+            # Compute p * A * x / (l * x)
+            push!(env.capital_intensities,
+                [
+                    profit_rates[i] => env.prices[:, i][effects_sectors]' * env.right_side_factor[:, i],
+                    profit_rates[i + 1] => env.prices[:, i][effects_sectors]' * env.right_side_factor[:, i + 1]
+                ]
+            )
+            push!(env.lx_at_switch, [
+                    profit_rates[i] => env.lx[i],
+                    profit_rates[i + 1] => env.lx[i + 1]
+                ]
+            )
+            push!(env.pA_at_switch,
+                [
+                    profit_rates[i] => env.pA[:, i][effects_sectors],
+                    profit_rates[i + 1] => env.pA[:, i + 1][effects_sectors]
+                ]
+            )
+            push!(env.l_at_switch,
+                [
+                    profit_rates[i] => vec(view(l, :, env.chosen_technology[:, i]))[effects_sectors],
+                    profit_rates[i + 1] => vec(view(l, :, env.chosen_technology[:, i + 1]))[effects_sectors]
+                ]
+            )
+            push!(env.intensities_at_switch,
+            [
+                profit_rates[i] => env.intensities_trunc[:, i][effects_sectors],
+                profit_rates[i + 1] => env.intensities_trunc[:, i + 1][effects_sectors]
+            ]
+            )
+            push!(env.prices_switch, profit_rates[i] => env.prices[:, i][effects_sectors])
+            push!(env.technologies_switch,
+                [profit_rates[i] => env.chosen_technology[:, i][effects_sectors],
+                profit_rates[i + 1] => env.chosen_technology[:, i + 1][effects_sectors]]
+            )
+        end
     end
 
     profit_rates = 0:stepsize:r_max_new
