@@ -74,20 +74,25 @@ end
 
 function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, verbose=false)
     
-    # C_inv = StrideArray{eltype(A)}(undef, size(A, 1), size(A, 1))
-    # C_inv .= inv(B[:, tech] - (1 + r) * A[:, tech])
+    # C_inv = StrideArray{eltype(env.A)}(undef, env.n_goods, env.n_goods)
+    # C_inv .= inv(I(36) - (1 + r) * env.A[:, old_tech])
     C_inv = inv(I(36) - (1 + r) * env.A[:, old_tech])
 
     old_l = copy(vec(env.l[old_tech]))
     w_old = compute_w(C_inv, env.d, old_l)
     w_max = w_old
-    l = copy(old_l)
+    l = StrideArray{eltype(C_inv)}(undef, env.n_goods)
+    l .= copy(old_l)
     best_sector = best_col = 0
 
     # These are variables used in compute_w that are preallocated here
-    temp_u = Vector{Float64}(undef, env.n_goods)
-    temp_l_C_inv = adjoint(Vector{Float64}(undef, env.n_goods))
+    temp_u = StrideArray{eltype(C_inv)}(undef, env.n_goods)
+    temp_l_C_inv = adjoint(StrideArray{eltype(C_inv)}(undef, env.n_goods))
 
+    # old_tech = StrideArray{eltype(old_tech)}(undef, env.n_goods)
+    # tech = StrideArray{eltype(old_tech)}(undef, env.n_goods)
+    # old_tech .= copy(old_tech)
+    # tech .= copy(old_tech)
     tech = copy(old_tech)
     
     for sector_tech in eachindex(old_tech) # loop over all sectors
