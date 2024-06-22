@@ -87,32 +87,30 @@ function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, verbose=f
 
     # These are variables used in compute_w that are preallocated here
     temp_u = StrideArray{eltype(C_inv)}(undef, env.n_goods)
-    temp_l_C_inv = adjoint(StrideArray{eltype(C_inv)}(undef, env.n_goods))
-
-    # old_tech = StrideArray{eltype(old_tech)}(undef, env.n_goods)
-    # tech = StrideArray{eltype(old_tech)}(undef, env.n_goods)
-    # old_tech .= copy(old_tech)
-    # tech .= copy(old_tech)
+    temp_l_C_inv = StrideArray{eltype(C_inv)}(undef, env.n_goods)
     tech = copy(old_tech)
+
+    A = StrideArray{eltype(env.A)}(undef, size(env.A))
+    copyto!(A, env.A)
     
     for sector_tech in eachindex(old_tech) # loop over all sectors
         for country_tech in 1:Int(env.n_countries) # loop over all possible technologies
             # Calculate the column position of the new technology
             new_col = (country_tech - 1) * env.n_goods + sector_tech
-            process_old = view(env.A, :, old_tech[sector_tech])
-            process_new = view(env.A, :, new_col)
+            process_old = A[:, old_tech[sector_tech]]
+            process_new = A[:, new_col]
             l[sector_tech] = env.l[new_col]
 
             # Compute the wage resulting from switch to sector_tech
             w = compute_w(C_inv, env.d, l, r, process_old, process_new, sector_tech, temp_u, temp_l_C_inv)
             tech[sector_tech] = new_col
+            A_trunc = view(env.A, :, tech)
             # w = compute_w(inv(I(36) - (1 + r) * env.A[:, tech]), env.d, l)
-            A = view(env.A, :, tech)
             # w = compute_w(A, I(36), env.d, l, r)
 
             # Check whether the wage increased
             if w > w_max && w < w_limit # TODO: does this work?
-                if !(compute_R(real_eigvals(A)) < r)
+                if !(compute_R(real_eigvals(A_trunc)) < r)
                     w_max = w
                     best_sector = sector_tech
                     best_col = new_col

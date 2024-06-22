@@ -15,6 +15,8 @@ using StrideArrays
 using JuMP
 using RecipesBase
 using FLoops
+using LoopVectorization
+using FastBroadcast
 
 # Helper functions
 include("helpers.jl")

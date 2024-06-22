@@ -83,9 +83,10 @@ function compute_w(C_inv, d, l, r, process_old, process, industry, u, l_C_inv)
     # TODO: speedup
     # v = eachindex(d) .== industry
     # We substract -(1+r)A from B, therefore we have to reverse the sign here
-    u .= (process_old - process) * (1 + r)
+    @.. u = (process_old - process) * (1 + r)
     v_T_C_inv = adjoint(view(C_inv, industry, :)) # v' * C_inv
-    l_C_inv .= l' * C_inv # this can be done easier by saving l_old' * C_inv and then just updating one coordinate
+    # l_C_inv[:] = l' * C_inv # this can be done easier by saving l_old' * C_inv and then just updating one coordinate
+    mul!(l_C_inv, C_inv', l)
     denom = 1 + dot(v_T_C_inv, u)
     numerator = dot(l_C_inv, u) * dot(v_T_C_inv, d)
     return 1 / (dot(l_C_inv, d) - numerator / denom) # first is needed bc of StrideArrays
