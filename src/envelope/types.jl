@@ -1,3 +1,6 @@
+# EAM: ElasticArray matrix with Floats
+# EAV: ElasticArray vector with Floats
+# EAI: ElasticArray vector with Int64
 Base.@kwdef struct LPEnvelope{S, T, U, EAM, EAI, EAV, VP, VPV, VPI, P} <: EnvelopeMethod
     A::S
     l::T
@@ -31,7 +34,7 @@ Base.@kwdef struct LPEnvelope{S, T, U, EAM, EAI, EAV, VP, VPV, VPI, P} <: Envelo
 end
 
 
-function LPEnvelope(A, l, d, profit_rates, effects_sectors)
+function LPEnvelope(A, l, d, profit_rates, effects_sectors, floattype = Float64)
     n_goods = size(A, 1)
     LPEnvelope(
         A = A,
@@ -39,20 +42,20 @@ function LPEnvelope(A, l, d, profit_rates, effects_sectors)
         d = d,
         n_goods = n_goods,
         n_countries = div(size(A, 2), n_goods),
-        intensities = ElasticArray{Float64}(undef, size(A, 2), length(profit_rates)),
-        intensities_trunc = ElasticArray{Float64}(undef, n_goods, length(profit_rates)),
-        pA = ElasticArray{Float64}(undef, length(effects_sectors), length(profit_rates)),
-        right_side_factor = ElasticArray{Float64}(undef, length(effects_sectors), length(profit_rates)),
-        lx = ElasticArray{Float64}(undef, length(profit_rates)),
-        prices = ElasticArray{Float64}(undef, n_goods, length(profit_rates)),
+        intensities = ElasticArray{floattype}(undef, size(A, 2), length(profit_rates)),
+        intensities_trunc = ElasticArray{floattype}(undef, n_goods, length(profit_rates)),
+        pA = ElasticArray{floattype}(undef, length(effects_sectors), length(profit_rates)),
+        right_side_factor = ElasticArray{floattype}(undef, length(effects_sectors), length(profit_rates)),
+        lx = ElasticArray{floattype}(undef, length(profit_rates)),
+        prices = ElasticArray{floattype}(undef, n_goods, length(profit_rates)),
         chosen_technology = ElasticArray{Int64}(undef, n_goods, length(profit_rates)),
-        capital_intensities = Vector{Pair{Float64, Float64}}[],
-        lx_at_switch = Vector{Pair{Float64, Float64}}[],
-        intensities_at_switch = Vector{Pair{Float64, Vector{Float64}}}[],
-        prices_switch = Pair{Float64, Vector{Float64}}[],
-        technologies_switch = Vector{Pair{Float64, Vector{Int64}}}[],
-        pA_at_switch = Vector{Pair{Float64, Vector{Float64}}}[],
-        l_at_switch = Vector{Pair{Float64, Vector{Float64}}}[]
+        capital_intensities = Vector{Pair{floattype, floattype}}[],
+        lx_at_switch = Vector{Pair{floattype, floattype}}[],
+        intensities_at_switch = Vector{Pair{floattype, Vector{floattype}}}[],
+        prices_switch = Pair{floattype, Vector{floattype}}[],
+        technologies_switch = Vector{Pair{floattype, Vector{Int64}}}[],
+        pA_at_switch = Vector{Pair{floattype, Vector{floattype}}}[],
+        l_at_switch = Vector{Pair{floattype, Vector{floattype}}}[]
     )
 end
 
