@@ -9,7 +9,6 @@ function n_reswitches(results)
     # Ensure that we use technology of final switch as well
     technology = [x[1].second for x in results["switches"]["technology"]]
     push!(technology, results["switches"]["technology"][end][2].second)
-    # println(technology)
     for (i, tech1) in enumerate(technology[begin:(end - 1)])
         for tech2 in technology[(i + 1):end]
             if tech1 == tech2
@@ -17,11 +16,13 @@ function n_reswitches(results)
             end
         end
     end
-    return at
+    # It is possible that we reswitch multiple times with the same technology.
+    return unique(at)
 end
 
 """ Return the number of cases in each of the four switching possibilities. """
 function switch_cases(results)
+    # TODO: check for switches in adjacent profit rates -> whether grid is fine enough
     κ_down_labour_up = κ_down_labour_down = κ_up_labour_up = κ_up_labour_down = 0
     sum_of_multiple_switches = 0
     for i in eachindex(results["switches"]["capital_intensities"])
