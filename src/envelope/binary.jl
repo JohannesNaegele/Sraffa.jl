@@ -72,11 +72,9 @@ function try_piecewise_switches(envelope::BinaryEnvelope, r, C_inv)
     return w_max != w_old
 end
 
-function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, verbose=false)
+function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, A, C_inv; verbose=false)
     
-    # C_inv = StrideArray{eltype(env.A)}(undef, env.n_goods, env.n_goods)
-    # C_inv .= inv(I(36) - (1 + r) * env.A[:, old_tech])
-    C_inv = inv(I(36) - (1 + r) * env.A[:, old_tech])
+    C_inv .= inv(I(36) - (1 + r) * env.A[:, old_tech])
 
     old_l = copy(vec(env.l[old_tech]))
     w_old = compute_w(C_inv, env.d, old_l)
@@ -89,9 +87,6 @@ function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, verbose=f
     temp_u = StrideArray{eltype(C_inv)}(undef, env.n_goods)
     temp_l_C_inv = StrideArray{eltype(C_inv)}(undef, env.n_goods)
     tech = copy(old_tech)
-
-    A = StrideArray{eltype(env.A)}(undef, size(env.A))
-    copyto!(A, env.A)
     
     for sector_tech in eachindex(old_tech) # loop over all sectors
         for country_tech in 1:Int(env.n_countries) # loop over all possible technologies
@@ -104,7 +99,7 @@ function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, verbose=f
             # Compute the wage resulting from switch to sector_tech
             w = compute_w(C_inv, env.d, l, r, process_old, process_new, sector_tech, temp_u, temp_l_C_inv)
             tech[sector_tech] = new_col
-            A_trunc = view(env.A, :, tech)
+            @inbounds A_trunc = view(env.A, :, tech)
             # w = compute_w(inv(I(36) - (1 + r) * env.A[:, tech]), env.d, l)
             # w = compute_w(A, I(36), env.d, l, r)
 

@@ -46,7 +46,7 @@ function create_prices_solver(solver, l, C, d, lb)
     return model
 end
 
-""" ??? """
+""" Modify the input-matrix to A. """
 function modify_A!(model, A, B, d)
     delete(model, model[:d])
     unregister(model, :d)
@@ -80,14 +80,13 @@ compute_w(C_inv, d, l) = 1 / (l' * C_inv * d)
 l is a column vector that gets transposed.
 """
 function compute_w(C_inv, d, l, r, process_old, process, industry, u, l_C_inv)
-    # TODO: speedup
-    # v = eachindex(d) .== industry
     # We substract -(1+r)A from B, therefore we have to reverse the sign here
     @.. u = (process_old - process) * (1 + r)
-    v_T_C_inv = adjoint(view(C_inv, industry, :)) # v' * C_inv
-    # l_C_inv[:] = l' * C_inv # this can be done easier by saving l_old' * C_inv and then just updating one coordinate
+    # This is v' * C_inv given v = eachindex(d) .== industry
+    v_T_C_inv = view(C_inv, industry, :)
+    # This can be done easier by saving l_old' * C_inv and then just updating one coordinate
     mul!(l_C_inv, C_inv', l)
     denom = 1 + dot(v_T_C_inv, u)
     numerator = dot(l_C_inv, u) * dot(v_T_C_inv, d)
-    return 1 / (dot(l_C_inv, d) - numerator / denom) # first is needed bc of StrideArrays
+    return 1 / (dot(l_C_inv, d) - numerator / denom) # dot is needed bc of StrideArrays
 end

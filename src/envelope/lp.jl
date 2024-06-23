@@ -28,6 +28,10 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
     # Set d
     set_normalized_rhs.(model_intensities[:d], d)
 
+    C_inv_temp = similar(A[:, 1:size(A, 1)])
+    A = StrideArray{eltype(env.A)}(undef, size(env.A))
+    copyto!(A, env.A)
+
     while r_max_old + stepsize <= r_max_new
         for (i, r) in enumerate(profit_rates)
             # Get the indices for the columns with the highest intensity per sector
@@ -51,7 +55,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                     tech = env.chosen_technology[:, i - 1]
                     env.chosen_technology[:, i] = deepcopy(tech)
                     w_limit = compute_w(A[:, tech], B[:, tech], d, l[tech], profit_rates[i - 1])
-                    improved, best_sector, best_col = try_piecewise_switches(env, r, tech, w_limit)
+                    improved, best_sector, best_col = try_piecewise_switches(env, r, tech, w_limit, A, C_inv_temp, verbose = verbose)
                     if improved
                         env.chosen_technology[best_sector, i] = best_col
                     end
