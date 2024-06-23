@@ -71,20 +71,6 @@ function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, A, C_inv;
     return w_max > w_old, best_sector, best_col
 end
 
-function try_start_tech(envelope, start_r, end_r)
-    tech = envelope.ids[envelope.tech_dict[start_r]]
-    C_inv = envelope.B - (1 + end_r) * envelope.A[:, tech]
-    w_old = envelope.wages[end_r]
-    process_old = view(envelope.A, :, envelope.ids[old_tech_id][sector_tech])
-    new_col = (country_tech - 1) * n_goods + sector_tech
-    process_new = view(envelope.A, :, new_col)
-    l[sector_tech] = envelope.l[new_col]
-    # It should be ok to update the inverse with the Woodbury formula since the new process is usually quite different
-    w, C_inv_new = compute_w(C_inv=C_inv, d=envelope.d, l=l, process_old=process_old, process=process_new, industry=sector_tech, r=end_r - start_r)
-    update_envelope(envelope, r, new_tech, w_max)
-    return w_max != w_old, C_inv_new
-end
-
 """ Compute the envelope for the book-of-blueprints A with the VFZ algorithm.
 
 It might make sense to at least sometimes use the Sherman-Morrison formula to update the inverse.
