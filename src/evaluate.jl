@@ -1,6 +1,6 @@
 """ Return number of switches. """
 function n_switches(results)
-    return length(results["switches"]["capital_intensities"])
+    return length(results["switches"]["technology"])
 end
 
 """ Return number of reswitches. """
@@ -89,7 +89,7 @@ end
         B_curve = B[1:n_techs, tech]
         l_curve = l[tech]
         for (i, r) in enumerate(grid_R)
-            curves_countries[i, j] = compute_w(A_curve, B_curve, d, l_curve, r)
+            curves_countries[i, j] = compute_w(A_curve, B_curve, d, l_curve, r) # FIXME: Accurate with big(r) (later as well)
         end
     end
     curves_env = zeros(length(grid_R), length(techs) + 1)
@@ -97,7 +97,7 @@ end
     A_curve = A[1:n_techs, techs[1][1].second]
     B_curve = B[1:n_techs, techs[1][1].second]
     l_curve = l[techs[1][1].second]
-    r_env[1] = compute_R(maximum(real_eigvals(A_curve)))
+    r_env[1] = compute_R(real_eigvals(A_curve))
     for (i, r) in enumerate(grid_R)
         w = compute_w(A_curve, B_curve, d, l_curve, r)
         curves_env[i, 1] = r <= r_env[1] ? w : 0.0
@@ -106,7 +106,7 @@ end
         A_curve = A[1:n_techs, tech[2].second]
         B_curve = B[1:n_techs, tech[2].second]
         l_curve = l[tech[2].second]
-        r_env[j + 1] = compute_R(maximum(real_eigvals(A_curve)))
+        r_env[j + 1] = compute_R(real_eigvals(A_curve))
         for (i, r) in enumerate(grid_R)
             w = compute_w(A_curve, B_curve, d, l_curve, r)
             curves_env[i, j + 1] = r <= r_env[j + 1] ? w : 0.0
@@ -158,7 +158,7 @@ end
     curve = zeros(length(grid_R))
     lower_r = 0.0
     for (j, tech) in enumerate(techs)
-        upper_r = results["switches"]["l"][j][1].first
+        upper_r = techs[j][1].first
         A_curve = A[1:n_techs, tech[1].second]
         B_curve = B[1:n_techs, tech[1].second]
         l_curve = l[tech[1].second]
@@ -174,7 +174,7 @@ end
         A_curve = A[1:n_techs, techs[end][end].second]
         B_curve = B[1:n_techs, techs[end][end].second]
         l_curve = l[techs[end][end].second]
-        if results["switches"]["l"][length(techs)][2].first <= r
+        if techs[length(techs)][2].first <= r
             w = compute_w(A_curve, B_curve, d, l_curve, r)
             curve[i] = w
         end

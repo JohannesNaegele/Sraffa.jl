@@ -8,6 +8,8 @@ We use all sectors for switchpoint calculation but consider only `effects_sector
 function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
         model_intensities_trunc, model_prices, verbose = false, save_all=true, effects_sectors=1:size(A, 1), extend=true, calc_all=true)
 
+    @assert all(d .>= 0) "d must be non-negative!"
+
     r_max_old = -Inf
     r_max_new = Inf
     i_old = 1
@@ -16,17 +18,6 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
     profit_rates = 0:stepsize:R
 
     env = LPEnvelope(A, l, d, profit_rates, effects_sectors)
-
-    # FIXME: Das gehört hier nicht her
-    # Set l
-    map((x, y) -> set_objective_coefficient(model_intensities, x, y),
-        model_intensities[:x], l)
-    # This is necessary because of e.g. usa1982
-    if !all(d .>= 0)
-        d = ones(env.n_goods)
-    end
-    # Set d
-    set_normalized_rhs.(model_intensities[:d], d)
 
     C_inv_temp = similar(A[:, 1:size(A, 1)])
     A = StrideArray{eltype(env.A)}(undef, size(env.A))
@@ -51,12 +42,9 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                     map!(sector -> highest_intensity_indices(sector), view(env.chosen_technology, :, i), 1:env.n_goods)
                 else
                     # For pairwise switches use last optimal tech
-                    # tech = view(env.chosen_technology, :, i - 1)
-                    tech = env.chosen_technology[:, i - 1]
-                    env.chosen_technology[:, i] = deepcopy(tech)
-                    # FIXME:
-                    w_limit = Inf
-                    # w_limit = compute_w(A[:, tech], B[:, tech], d, l[tech], profit_rates[i - 1])
+                    tech = view(env.chosen_technology, :, i - 1)
+                    copyto!(view(env.chosen_technology, :, i), tech)
+                    w_limit = compute_w(A[:, tech], B[:, tech], d, l[tech], profit_rates[i - 1])
                     improved, best_sector, best_col = try_piecewise_switches(env, r, tech, w_limit, A, C_inv_temp, verbose = verbose)
                     if improved
                         env.chosen_technology[best_sector, i] = best_col
@@ -79,6 +67,10 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
         end
     end
 
+    d = ones(env.n_goods)
+    set_normalized_rhs.(model_intensities_trunc[:con], d)
+    set_objective_coefficient.(model_prices, model_prices[:p], d)
+
     # We compute the truncated stuff and prices only at switch points
     for (i, tech) in enumerate(eachcol(env.chosen_technology)[begin:(end - 1)])
         # Check whether we are at switch point
@@ -87,12 +79,10 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
             for j in i:(i + 1)
                 # FIXME: Do we want this at all?
                 # Compute truncated intensities
-                d = ones(env.n_goods)
                 A_trunc = view(env.A, :, env.chosen_technology[:, j])  # filter columns
                 l_trunc = vec(view(l, :, env.chosen_technology[:, j]))'  # filter columns
                 B_trunc = I(size(A_trunc, 1))  # initialize identity matrix
                 C_trunc = B_trunc - A_trunc
-                set_normalized_rhs.(model_intensities_trunc[:con], d)
                 modify_C!(model_intensities_trunc, model_intensities_trunc[:x], C_trunc)
                 optimize!(model_intensities_trunc)  # min l_trunc * x s.t. C_trunc * x ≥ d AND x .≥ 0
                 @assert is_solved_and_feasible(model_intensities_trunc) "at r=$(profit_rates[i])"
@@ -103,7 +93,6 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                 C = (B - (1 + r) * A)
                 C_trunc = view(C, :, env.chosen_technology[:, j])  # filter columns
                 set_normalized_rhs.(model_prices[:con], vec(l_trunc))
-                set_objective_coefficient.(model_prices, model_prices[:p], d)
                 modify_C!(model_prices, model_prices[:p], permutedims(C_trunc))
                 optimize!(model_prices)  # max p * d s.t. C' * p ≤ l AND p .≥ 0
                 @assert is_solved_and_feasible(model_prices)
@@ -115,7 +104,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                 env.pA[:, j] = vec(A_trunc[effects_sectors, effects_sectors]' * env.prices[:, i][effects_sectors])
                 # Compute A * x / (l * x)
                 env.right_side_factor[:, j] = A_trunc[effects_sectors, effects_sectors] *
-                                            env.intensities_trunc[:, j][effects_sectors] / env.lx[j]
+                    env.intensities_trunc[:, j][effects_sectors] / env.lx[j]
             end
 
             # Compute p * A * x / (l * x)

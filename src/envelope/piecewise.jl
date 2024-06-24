@@ -1,6 +1,6 @@
 function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, A, C_inv; verbose=false)
     
-    C_inv .= inv(I(36) - (1 + r) * env.A[:, old_tech])
+    C_inv .= inv(I(env.n_goods) - (1 + r) * env.A[:, old_tech])
 
     old_l = copy(vec(env.l[old_tech]))
     w_old = compute_w(C_inv, env.d, old_l)
@@ -21,22 +21,26 @@ function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, A, C_inv;
             process_old = A[:, old_tech[sector_tech]]
             process_new = A[:, new_col]
             l[sector_tech] = env.l[new_col]
+            tech[sector_tech] = new_col
 
             # Compute the wage resulting from switch to sector_tech
             w = compute_w(C_inv, env.d, l, r, process_old, process_new, sector_tech, temp_u, temp_l_C_inv)
-            tech[sector_tech] = new_col
             @inbounds A_trunc = view(env.A, :, tech)
             # w = compute_w(inv(I(36) - (1 + r) * env.A[:, tech]), env.d, l)
-            # w = compute_w(A, I(36), env.d, l, r)
+            # w = compute_w(env.A[:, tech], I(size(A_trunc, 1)), env.d, Vector(l), r)
 
             # TODO: Check without Woodbury to account for possible numerical instability
-
+            # TODO: Cache eigval calculation
             # Check whether the wage increased
-            if w > w_max && w < w_limit
-                if !(compute_R(real_eigvals(A_trunc)) < r)
+            if w > w_max
+                degenerated = w > w_limit || compute_R(real_eigvals(A_trunc)) < r
+                if !degenerated
                     w_max = w
                     best_sector = sector_tech
                     best_col = new_col
+                    @debug "Nondegenerated case at profit rate $r"
+                else
+                    @debug "Degenerated case at profit rate $r"
                 end
             end
             # Reset the vectors
