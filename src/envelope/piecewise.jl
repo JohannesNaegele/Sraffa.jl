@@ -1,4 +1,4 @@
-function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, A, C_inv; verbose=false)
+function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, A, C_inv)
     
     C_inv .= inv(I(env.n_goods) - (1 + r) * env.A[:, old_tech])
 

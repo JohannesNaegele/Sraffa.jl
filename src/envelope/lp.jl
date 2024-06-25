@@ -6,7 +6,7 @@ Therefore all objects have permuted dimensions compared to the usual ``(1 + r)Ap
 We use all sectors for switchpoint calculation but consider only `effects_sectors` for effects such as reverse capital deepening.
 """
 function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
-        model_intensities_trunc, model_prices, verbose = false, save_all=true, effects_sectors=1:size(A, 1), extend=true, calc_all=true)
+        model_intensities_trunc, model_prices, save_all=true, effects_sectors=1:size(A, 1), extend=true, calc_all=true)
 
     @assert all(d .>= 0) "d must be non-negative!"
 
@@ -31,8 +31,9 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                 return max_index
             end
             if r > r_max_old
+                @info "Profit rate: $r"
+                # TODO: Regularly check with LP case whether piecewise switches succeeded
                 if calc_all || i == 1
-                    verbose && println("Profit rate: $r")
                     # Compute intensities
                     modify_r!(model_intensities, r)
                     optimize!(model_intensities) # min l * x s.t. C * x ≥ d AND x .≥ 0
@@ -40,12 +41,13 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                     @assert is_solved_and_feasible(model_intensities) error_msg
                     env.intensities[:, i] = replace_with_zero.(value.(model_intensities[:x]))
                     map!(sector -> highest_intensity_indices(sector), view(env.chosen_technology, :, i), 1:env.n_goods)
+                    env.chosen_technology[:, i] = Main.zamb_res[:, 1]
                 else
                     # For pairwise switches use last optimal tech
                     tech = view(env.chosen_technology, :, i - 1)
                     copyto!(view(env.chosen_technology, :, i), tech)
                     w_limit = compute_w(A[:, tech], B[:, tech], d, l[tech], profit_rates[i - 1])
-                    improved, best_sector, best_col = try_piecewise_switches(env, r, tech, w_limit, A, C_inv_temp, verbose = verbose)
+                    improved, best_sector, best_col = try_piecewise_switches(env, r, tech, w_limit, A, C_inv_temp)
                     if improved
                         env.chosen_technology[best_sector, i] = best_col
                     end
@@ -85,7 +87,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                 C_trunc = B_trunc - A_trunc
                 modify_C!(model_intensities_trunc, model_intensities_trunc[:x], C_trunc)
                 optimize!(model_intensities_trunc)  # min l_trunc * x s.t. C_trunc * x ≥ d AND x .≥ 0
-                @assert is_solved_and_feasible(model_intensities_trunc) "at r=$(profit_rates[i])"
+                @assert is_solved_and_feasible(model_intensities_trunc) "switch at r=$(profit_rates[i])"
                 env.intensities_trunc[:, j] = value.(model_intensities_trunc[:x])
 
                 # Compute prices

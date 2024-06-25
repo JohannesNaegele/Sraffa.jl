@@ -15,7 +15,7 @@ At the end we should check again at lowest and highest profit rate of one wage c
 Bear in mind that the columns of A describe the technology of one sector.
 Therefore all objects have permuted dimensions compared to the usual ``(1 + r)Ap + wl = p`` formula!!
 """
-function compute_vfz(; A, B, l, d, R, step, verbose = false, save_all=true)
+function compute_vfz(; A, B, l, d, R, step, save_all=true)
     # Number of goods
     n_goods = size(A, 1)
     profit_rates = 0.0:step:R
@@ -37,6 +37,6 @@ function compute_vfz(; A, B, l, d, R, step, verbose = false, save_all=true)
     # Test whether the Woodbury formula is stable; do this only at begin/start of tech choice
     test_at_corners(envelope, l, d, R)
     n_techs = unique(values(envelope.tech_dict))
-    println("We have $(n_techs - 1) switches.")
+    @info "We have $(n_techs - 1) switches."
     return envelope
 end

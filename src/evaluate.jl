@@ -54,19 +54,19 @@ end
 function switch_info(results)
     # Replication number of switches
     num_switches = n_switches(results)
-    println("Number of switches: ", num_switches)
+    @info "Number of switches: ", num_switches
 
     # Replication number of reswitches
-    println("Number of reswitches: ", n_reswitches(results))
+    @info "Number of reswitches: ", n_reswitches(results)
 
     # Replication intensity cases
     found_cases = switch_cases(results)
-    println("There have been $(found_cases[1]) instances of switches that are not piecemeal.")
+    @info "There have been $(found_cases[1]) instances of switches that are not piecemeal."
     cases_perc = round.(found_cases ./ num_switches .* 100, digits = 2)
-    println("Capital intensity-reducing, labour-increasing: $(found_cases[2]) cases ($(cases_perc[2])%)")
-    println("Capital intensity-reducing, labour-reducing: $(found_cases[3]) cases ($(cases_perc[3])%)")
-    println("Capital intensity-increasing, labour-increasing: $(found_cases[4]) cases ($(cases_perc[4])%)")
-    println("Capital intensity-increasing, labour-reducing: $(found_cases[5]) cases ($(cases_perc[5])%)")
+    @info "Capital intensity-reducing, labour-increasing: $(found_cases[2]) cases ($(cases_perc[2])%)"
+    @info "Capital intensity-reducing, labour-reducing: $(found_cases[3]) cases ($(cases_perc[3])%)"
+    @info "Capital intensity-increasing, labour-increasing: $(found_cases[4]) cases ($(cases_perc[4])%)"
+    @info "Capital intensity-increasing, labour-reducing: $(found_cases[5]) cases ($(cases_perc[5])%)"
 end
 
 @userplot WageCurves

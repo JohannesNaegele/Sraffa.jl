@@ -69,7 +69,7 @@ end
 
 Since A and l are transposed compared to the usual formula (A from the start, l inside this function), we need to reverse the order.
 """
-compute_w(A, B, d, l, r) = 1 / (l' * (B - (1 + r) * A)^-1 * d)
+compute_w(A, B, d, l, r) = 1 / (l' * ((B - (1 + r) * A) \ d))
 
 """ Calculate the wage rate w for a given inverse matrix.
 """
@@ -80,6 +80,7 @@ compute_w(C_inv, d, l) = 1 / (l' * C_inv * d)
 l is a column vector that gets transposed.
 """
 function compute_w(C_inv, d, l, r, process_old, process, industry, u, l_C_inv)
+    # TODO: think about Cholesky-like approaches
     # We substract -(1+r)A from B, therefore we have to reverse the sign here
     @.. u = (process_old - process) * (1 + r)
     # This is v' * C_inv given v = eachindex(d) .== industry
