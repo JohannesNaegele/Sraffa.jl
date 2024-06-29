@@ -80,14 +80,33 @@ compute_w(C_inv, d, l) = 1 / (l' * C_inv * d)
 l is a column vector that gets transposed.
 """
 function compute_w(C_inv, d, l, r, process_old, process, industry, u, l_C_inv)
-    # TODO: think about Cholesky-like approaches
     # We substract -(1+r)A from B, therefore we have to reverse the sign here
     @.. u = (process_old - process) * (1 + r)
     # This is v' * C_inv given v = eachindex(d) .== industry
     v_T_C_inv = view(C_inv, industry, :)
-    # This can be done easier by saving l_old' * C_inv and then just updating one coordinate
     mul!(l_C_inv, C_inv', l)
     denom = 1 + dot(v_T_C_inv, u)
     numerator = dot(l_C_inv, u) * dot(v_T_C_inv, d)
     return 1 / (dot(l_C_inv, d) - numerator / denom) # dot is needed bc of StrideArrays
+end
+
+""" Calculate the wage rate w given a LU decomposition using the Woodbury formula.
+
+l is a column vector that gets transposed.
+
+Plugin Woodbury: (A + uv')^{-1} d =: x_new
+u_new = A^{-1} u
+This gives: x_new = x_old - u_new v^T x_old / (1 + v^T u_new)
+Result: 1 / (x_new^T * d)
+
+See also https://scicomp.stackexchange.com/questions/21303/solve-rank-one-update-to-lu-using-plain-vanilla-lu-routine
+"""
+function compute_w(decomp, d, l, r, process_old, process, industry, u, d_C_inv_old, u_new)
+    # We substract -(1+r)A from B, therefore we have to reverse the sign here
+    u .= (process_old - process) * (1 + r)
+    ldiv!(u_new, decomp, u)
+    ldiv!(d_C_inv_old, decomp, d)
+    numerator = u_new * d_C_inv_old[industry]
+    denom = 1 + u_new[industry]
+    return 1 / (dot(l, d_C_inv_old - numerator / denom)) # dot is needed bc of StrideArrays
 end
