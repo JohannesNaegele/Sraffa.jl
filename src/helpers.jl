@@ -75,6 +75,10 @@ compute_w(A, B, d, l, r) = 1 / (l' * ((B - (1 + r) * A) \ d))
 """
 compute_w(C_inv, d, l) = 1 / (l' * C_inv * d)
 
+""" Calculate the wage rate w for a given LU decomposition.
+"""
+compute_w(d, l; lu) = 1 / (l' * (lu \ d))
+
 """ Calculate the wage rate w with the Woodbury formula.
 
 l is a column vector that gets transposed.
@@ -84,6 +88,7 @@ function compute_w(C_inv, d, l, r, process_old, process, industry, u, l_C_inv)
     @.. u = (process_old - process) * (1 + r)
     # This is v' * C_inv given v = eachindex(d) .== industry
     v_T_C_inv = view(C_inv, industry, :)
+    # It would be smarter to look at C_inv * d since this remains constant
     mul!(l_C_inv, C_inv', l)
     denom = 1 + dot(v_T_C_inv, u)
     numerator = dot(l_C_inv, u) * dot(v_T_C_inv, d)
@@ -103,10 +108,18 @@ See also https://scicomp.stackexchange.com/questions/21303/solve-rank-one-update
 """
 function compute_w(decomp, d, l, r, process_old, process, industry, u, d_C_inv_old, u_new)
     # We substract -(1+r)A from B, therefore we have to reverse the sign here
-    u .= (process_old - process) * (1 + r)
+    @.. u = (process_old - process) * (1 + r)
     ldiv!(u_new, decomp, u)
-    ldiv!(d_C_inv_old, decomp, d)
-    numerator = u_new * d_C_inv_old[industry]
     denom = 1 + u_new[industry]
-    return 1 / (dot(l, d_C_inv_old - numerator / denom)) # dot is needed bc of StrideArrays
+    # Straightforward implementation:
+    # numerator = u_new * d_C_inv_old[industry]
+    # return 1 / (dot(l, d_C_inv_old - numerator / denom)) # dot is needed bc of StrideArrays
+    s = 0.0
+    for i in eachindex(l)
+        woodbury = d_C_inv_old[i] - u_new[i] * d_C_inv_old[industry] / denom
+        s += woodbury * l[i]
+    end
+    return 1 / s
 end
+
+# TODO: Think about utilizing the intensities to get some kind if derivative wrt. direction of new process.
