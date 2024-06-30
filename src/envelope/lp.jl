@@ -79,7 +79,6 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
         switch = tech[effects_sectors] != env.chosen_technology[effects_sectors, i + 1]
         if switch
             for j in i:(i + 1)
-                # FIXME: Do we want this at all?
                 # Compute truncated intensities
                 A_trunc = view(env.A, :, env.chosen_technology[:, j])  # filter columns
                 l_trunc = vec(view(l, :, env.chosen_technology[:, j]))'  # filter columns

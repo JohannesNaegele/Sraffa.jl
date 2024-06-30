@@ -26,8 +26,7 @@ function try_piecewise_switches(env::LPEnvelope, r, old_tech, w_limit, A, C_inv)
             # Compute the wage resulting from switch to sector_tech
             w = compute_w(C_inv, env.d, l, r, process_old, process_new, sector_tech, temp_u, temp_l_C_inv)
             @inbounds A_trunc = view(env.A, :, tech)
-
-            # TODO: Check without Woodbury to account for possible numerical instability
+            
             # TODO: Cache eigval calculation
             # Check whether the wage increased
             if w > w_max
