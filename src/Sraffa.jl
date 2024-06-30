@@ -18,6 +18,8 @@ using RecipesBase
 using FLoops
 using LoopVectorization
 using FastBroadcast
+using MultiFloats
+# TODO: Think about using KrylovKit for eigvals
 
 # Helper functions
 include("helpers.jl")

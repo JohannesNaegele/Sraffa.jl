@@ -31,7 +31,7 @@ function compute_envelope(; A, B, l, d, R, stepsize, model_intensities,
                 return max_index
             end
             if r > r_max_old
-                @info "Profit rate: $r"
+                @debug "Profit rate: $r"
                 # TODO: Regularly check with LP case whether piecewise switches succeeded
                 if calc_all || i == 1
                     # Compute intensities
